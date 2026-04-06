@@ -3201,37 +3201,52 @@
             cerrarExportModal();
         }
 
-        function exportarAPDF() {
-            const nombreArchivo = document.getElementById('nombreArchivo').value || 'Planeamiento-Didáctico';
-            const exportarInformacionGeneral = document.getElementById('exportarInformacionGeneral')?.checked ?? true;
-            const exportarSaberes = document.getElementById('exportarSaberes')?.checked ?? true;
-            const exportarSemanas = document.getElementById('exportarSemanas')?.checked ?? true;
-            const exportarReflexiones = document.getElementById('exportarReflexiones')?.checked ?? true;
-            const exportarSaberesGlobales = document.getElementById('exportarSaberesGlobales')?.checked ?? true;
-            const incluirEncabezado = document.getElementById('incluirEncabezado')?.checked ?? true;
-            const incluirPiePagina = document.getElementById('incluirPiePagina')?.checked ?? true;
-            
-            const areasUnicas = new Set();
-            semanas.forEach(semana => semana.areas.forEach(area => areasUnicas.add(area)));
-
-            function limpiarContenido(texto) {
-                if (!texto || texto.toString().trim() === '') return '';
-                return texto.toString().trim();
-            }
-
-            function formatearProcedimentales(texto) {
-                if (!texto) return '';
-                return texto.charAt(0).toUpperCase() + texto.slice(1);
-            }
-
-            function formatearIndicadores(texto) {
-                if (!texto) return '';
-                const partes = texto.split(/\.\s+/);
-                if (partes.length > 1) {
-                    return partes.map(p => p.trim()).filter(p => p).map(p => `• ${p}.`).join('<br>');
-                }
-                return texto;
-            }
+function exportarAPDF() {
+    const nombreArchivo = document.getElementById('nombreArchivo').value || 'Planeamiento-Didáctico';
+    const exportarInformacionGeneral = document.getElementById('exportarInformacionGeneral')?.checked ?? true;
+    const exportarSaberes = document.getElementById('exportarSaberes')?.checked ?? true;
+    const exportarSemanas = document.getElementById('exportarSemanas')?.checked ?? true;
+    const exportarReflexiones = document.getElementById('exportarReflexiones')?.checked ?? true;
+    const exportarSaberesGlobales = document.getElementById('exportarSaberesGlobales')?.checked ?? true;
+    const incluirEncabezado = document.getElementById('incluirEncabezado')?.checked ?? true;
+    const incluirPiePagina = document.getElementById('incluirPiePagina')?.checked ?? true;
+    
+    // --- RECOLECTAR SABERES GLOBALES DE TODAS LAS SEMANAS ---
+    let todosConceptuales = new Set();
+    let todosProcedimentales = new Set();
+    let todosActitudinales = new Set();
+    
+    const procMap = {
+        'reconoce': 'Reconoce patrones', 'abstrae': 'Abstrae', 'generaliza': 'Generaliza',
+        'transfiere': 'Transfiere', 'modulariza': 'Modulariza', 'formula': 'Formula algoritmos',
+        'remezcla': 'Remezcla', 'depura': 'Depura', 'programa': 'Programa',
+        'comunica': 'Comunica', 'colabora': 'Colabora', 'piensa': 'Piensa creativamente',
+        'maneja': 'Maneja tecnologías éticamente'
+    };
+    const actMap = {
+        'gusto': 'Gusto por la precisión', 'aprender': 'Aprender del error',
+        'flexibilidad': 'Flexibilidad', 'tolerancia': 'Tolerancia a la frustración'
+    };
+    
+    semanas.forEach(semana => {
+        semana.saberes.forEach(s => todosConceptuales.add(s));
+        semana.procedimentales.forEach(p => todosProcedimentales.add(procMap[p] || p));
+        semana.actitudinales.forEach(a => todosActitudinales.add(actMap[a] || a));
+    });
+    
+    function limpiarContenido(texto) {
+        if (!texto || texto.toString().trim() === '') return '';
+        return texto.toString().trim();
+    }
+    
+    function formatearIndicadores(texto) {
+        if (!texto) return '';
+        const partes = texto.split(/\.\s+/);
+        if (partes.length > 1) {
+            return partes.map(p => p.trim()).filter(p => p).map(p => `• ${p}.`).join('<br>');
+        }
+        return texto;
+    }
 
             let contenidoHTML = `<!DOCTYPE html>
 <html>
@@ -3316,178 +3331,158 @@
 <body>
     <div class="pagina">`;
 
-            if (incluirEncabezado) {
+           if (incluirEncabezado) {
                 let escudoHTML = '';
-                
                 const escudoImg = document.getElementById('escudoInstitucional');
                 if (escudoImg && escudoImg.src && escudoImg.src.startsWith('data:image')) {
                     escudoHTML = `<img src="${escudoImg.src}" alt="Escudo">`;
                 } else {
                     escudoHTML = `<div style="text-align:center; color:#999; font-size: 24px;">🖼️</div>`;
                 }
-                
                 contenidoHTML += `
-        <div class="encabezado-institucional">
-            <div class="escudo-pdf">
-                ${escudoHTML}
-            </div>
-            <div style="flex: 1;">
-                <div class="titulo-ministerio">${document.getElementById('nombreInstitucion').value || 'MINISTERIO DE EDUCACIÓN PÚBLICA'}</div>
-                <div class="titulo-gobierno">${document.getElementById('lemaInstitucion').value || 'Gobierno de Costa Rica'}</div>
-            </div>
-        </div>`;
+                <div class="encabezado-institucional">
+                    <div class="escudo-pdf">${escudoHTML}</div>
+                    <div style="flex:1;">
+                        <div class="titulo-ministerio">${document.getElementById('nombreInstitucion').value || 'MINISTERIO DE EDUCACIÓN PÚBLICA'}</div>
+                        <div class="titulo-gobierno">${document.getElementById('lemaInstitucion').value || 'Gobierno de Costa Rica'}</div>
+                    </div>
+                </div>`;
             }
-
+            
             contenidoHTML += `
-        <div class="titulo-principal">PLANTILLA DE PLANEAMIENTO DIDÁCTICO</div>
-        <div class="subtitulo">PROGRAMA NACIONAL DE FORMACIÓN TECNOLÓGICA<br>Informática educativa</div>`;
-
+                <div class="titulo-principal">PLANTILLA DE PLANEAMIENTO DIDÁCTICO</div>
+                <div class="subtitulo">PROGRAMA NACIONAL DE FORMACIÓN TECNOLÓGICA<br>Informática educativa</div>`;
+            
             if (exportarInformacionGeneral) {
                 contenidoHTML += `
-        <div class="seccion">
-            <div class="titulo-seccion">INFORMACIÓN GENERAL</div>
-            <table class="tabla">
-                <tr>
-                    <td><strong>Dirección Regional:</strong><br>${document.getElementById('direccionRegional').value || ''}</td>
-                    <td><strong>Centro educativo:</strong><br>${document.getElementById('centroEducativo').value || ''}</td>
-                    <td><strong>Código:</strong><br>${document.getElementById('codigoCentro').value || ''}</td>
-                    <td><strong>Circuito:</strong><br>${document.getElementById('circuito').value || ''}</td>
-                </tr>
-                <tr>
-                    <td><strong>Docente:</strong><br>${document.getElementById('nombreDocente').value || ''}</td>
-                    <td><strong>Asignatura:</strong><br>Formación tecnológica/Informática educativa</td>
-                    <td><strong>Ciclo/Nivel:</strong><br>${document.getElementById('ciclo').value || ''} / ${document.getElementById('nivel').value || ''}</td>
-                    <td><strong>Lecciones:</strong><br>${document.getElementById('leccionesPlanificadas').value || ''}</td>
-                </tr>
-            </table>
-        </div>`;
-
+                <div class="seccion">
+                    <div class="titulo-seccion">INFORMACIÓN GENERAL</div>
+                    <table class="tabla">
+                        <tr><td><strong>Dirección Regional:</strong><br>${document.getElementById('direccionRegional').value || ''}</td>
+                            <td><strong>Centro educativo:</strong><br>${document.getElementById('centroEducativo').value || ''}</td>
+                            <td><strong>Código:</strong><br>${document.getElementById('codigoCentro').value || ''}</td>
+                            <td><strong>Circuito:</strong><br>${document.getElementById('circuito').value || ''}</td>
+                        </tr>
+                        <tr><td><strong>Docente:</strong><br>${document.getElementById('nombreDocente').value || ''}</td>
+                            <td><strong>Asignatura:</strong><br>Formación tecnológica/Informática educativa</td>
+                            <td><strong>Ciclo/Nivel:</strong><br>${document.getElementById('ciclo').value || ''} / ${document.getElementById('nivel').value || ''}</td>
+                            <td><strong>Lecciones:</strong><br>${document.getElementById('leccionesPlanificadas').value || ''}</td>
+                        </tr>
+                    </table>
+                </div>`;
+                
                 const ejesSeleccionados = Array.from(document.querySelectorAll('input[name="eje"]:checked')).map(cb => cb.value);
                 contenidoHTML += `
-        <div class="seccion">
-            <div class="titulo-seccion">EJES TRANSVERSALES</div>
-            <table class="tabla">
-                <tr>
-                    <th>Ciudadanía digital</th>
-                    <th>Pensamiento computacional</th>
-                    <th>Emprendimiento</th>
-                </tr>
-                <tr>
-                    <td style="text-align: center; font-weight: bold;">${ejesSeleccionados.includes('ciudadania') ? '[X] SELECCIONADO' : '[ ]'}</td>
-                    <td style="text-align: center; font-weight: bold;">${ejesSeleccionados.includes('pensamiento') ? '[X] SELECCIONADO' : '[ ]'}</td>
-                    <td style="text-align: center; font-weight: bold;">${ejesSeleccionados.includes('emprendimiento') ? '[X] SELECCIONADO' : '[ ]'}</td>
-                </tr>
-            </table>
-        </div>`;
-
+                <div class="seccion">
+                    <div class="titulo-seccion">EJES TRANSVERSALES</div>
+                    <table class="tabla">
+                        <tr><th>Ciudadanía digital</th><th>Pensamiento computacional</th><th>Emprendimiento</th></tr>
+                        <tr><td style="text-align:center; font-weight:bold;">${ejesSeleccionados.includes('ciudadania') ? '[X] SELECCIONADO' : '[ ]'}</td>
+                            <td style="text-align:center; font-weight:bold;">${ejesSeleccionados.includes('pensamiento') ? '[X] SELECCIONADO' : '[ ]'}</td>
+                            <td style="text-align:center; font-weight:bold;">${ejesSeleccionados.includes('emprendimiento') ? '[X] SELECCIONADO' : '[ ]'}</td>
+                        </tr>
+                    </table>
+                </div>`;
+                
                 let metodologia = document.getElementById('metodologiaActiva').value;
                 if (metodologia === 'otra') metodologia = document.getElementById('metodologiaPersonalizada').value || 'Metodología personalizada';
                 const metodologiasMap = { 'ABJ': 'Aprendizaje basado en juegos (ABJ)', 'ABR': 'Aprendizaje basado en retos (ABR)', 'APD': 'Aprendizaje Pensamiento por Diseño (APD)' };
                 contenidoHTML += `
-        <div class="seccion">
-            <div class="titulo-seccion">METODOLOGÍA ACTIVA</div>
-            <div style="background: white; border: 1pt solid #ddd; border-radius: 2mm; padding: 3mm;"><div style="text-align: center; font-weight: bold;">${metodologiasMap[metodologia] || metodologia}</div></div>
-        </div>`;
+                <div class="seccion">
+                    <div class="titulo-seccion">METODOLOGÍA ACTIVA</div>
+                    <div style="background:white; border:1pt solid #ddd; border-radius:2mm; padding:3mm; text-align:center; font-weight:bold;">${metodologiasMap[metodologia] || metodologia}</div>
+                </div>`;
             }
-
-            if (exportarSaberes && areasUnicas.size > 0) {
-                const ciclo = document.getElementById('ciclo').value;
+            
+            if (exportarSaberes) {
+                const areasUnicas = new Set();
+                semanas.forEach(semana => semana.areas.forEach(area => areasUnicas.add(area)));
+                if (areasUnicas.size > 0) {
+                    const ciclo = document.getElementById('ciclo').value;
+                    contenidoHTML += `
+                    <div class="seccion">
+                        <div class="titulo-seccion">ÁREAS Y RESULTADOS DE APRENDIZAJE</div>
+                        <table class="tabla"><tr><th>Área</th><th>Resultado de Aprendizaje (RdA)</th></tr>`;
+                    areasUnicas.forEach(area => {
+                        const rda = (typeof RDA_POR_CICLO !== 'undefined' && RDA_POR_CICLO[ciclo]?.[area]) ? RDA_POR_CICLO[ciclo][area] : 'No definido';
+                        contenidoHTML += `<tr><td>${area}</td><td>${rda}</td></tr>`;
+                    });
+                    contenidoHTML += `</table></div>`;
+                }
+            }
+            
+            if (exportarSaberesGlobales && (todosConceptuales.size > 0 || todosProcedimentales.size > 0 || todosActitudinales.size > 0)) {
                 contenidoHTML += `
-        <div class="seccion">
-            <div class="titulo-seccion">ÁREAS Y RESULTADOS DE APRENDIZAJE</div>
-            <table class="tabla">
-                <tr><th>Área</th><th>Resultado de Aprendizaje (RdA)</th></tr>`;
-                areasUnicas.forEach(area => {
-                    const rda = RDA_POR_CICLO[ciclo]?.[area] || 'No definido';
-                    contenidoHTML += `<tr><td>${area}</td><td>${rda}</td></tr>`;
-                });
-                contenidoHTML += `</table></div>`;
+                <div class="seccion">
+                    <div class="titulo-seccion">SABERES GLOBALES DEL MÓDULO</div>
+                    <div class="saberes-globales">
+                        <div class="saberes-caja"><h4>📚 Saberes Conceptuales</h4>${todosConceptuales.size ? Array.from(todosConceptuales).map(s => `• ${s}`).join('<br>') : '<em>No seleccionados</em>'}</div>
+                        <div class="saberes-caja"><h4>🛠️ Saberes Procedimentales</h4>${todosProcedimentales.size ? Array.from(todosProcedimentales).map(p => `• ${p}`).join('<br>') : '<em>No seleccionados</em>'}</div>
+                        <div class="saberes-caja"><h4>🌟 Saberes Actitudinales</h4>${todosActitudinales.size ? Array.from(todosActitudinales).map(a => `• ${a}`).join('<br>') : '<em>No seleccionados</em>'}</div>
+                    </div>
+                </div>`;
             }
-
-            if (exportarSaberesGlobales) {
-                contenidoHTML += `
-        <div class="seccion">
-            <div class="titulo-seccion">SABERES GLOBALES</div>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm;">
-                <div style="background: white; border: 1pt solid #ddd; border-radius: 2mm; padding: 3mm;"><div style="font-weight: bold; color: #45258F; margin-bottom: 2mm;">Conceptuales</div>${saberesSeleccionados.size ? Array.from(saberesSeleccionados).map(s => `• ${s}`).join('<br>') : '<em>No seleccionados</em>'}</div>
-                <div style="background: white; border: 1pt solid #ddd; border-radius: 2mm; padding: 3mm;"><div style="font-weight: bold; color: #45258F; margin-bottom: 2mm;">Procedimentales</div>${saberesProcedimentalesGlobales.size ? Array.from(saberesProcedimentalesGlobales).map(p => `• ${formatearProcedimentales(p)}`).join('<br>') : '<em>No seleccionados</em>'}</div>
-                <div style="background: white; border: 1pt solid #ddd; border-radius: 2mm; padding: 3mm;"><div style="font-weight: bold; color: #45258F; margin-bottom: 2mm;">Actitudinales</div>${saberesActitudinalesGlobales.size ? Array.from(saberesActitudinalesGlobales).map(a => `• ${a}`).join('<br>') : '<em>No seleccionados</em>'}</div>
-            </div>
-        </div>`;
-            }
-
+            
             if (exportarSemanas && semanas.length > 0) {
                 contenidoHTML += `<div class="seccion"><div class="titulo-seccion">PLANIFICACIÓN POR SEMANAS</div>`;
                 semanas.forEach((semana, index) => {
+                    const ejeNombre = semana.eje ? (window.obtenerNombreEje ? window.obtenerNombreEje(semana.eje) : semana.eje) : 'No seleccionado';
                     contenidoHTML += `
-            <div style="margin-bottom: 6mm; page-break-inside: avoid;">
-                <div class="encabezado-semana">
-                    📅 Semana ${index + 1} - ${semana.lecciones}
-                </div>
-                <table class="tabla">
-                    <tr>
-                        <th width="33%">Indicadores de logro</th>
-                        <th width="34%">Estrategias de Mediación</th>
-                        <th width="33%">Indicadores de evaluación</th>
-                    </tr>
-                    <tr>
-                        <td style="vertical-align: top;">${formatearIndicadores(limpiarContenido(semana.indicadores)) || 'No especificado'}</td>
-                        <td style="vertical-align: top;">${limpiarContenido(semana.actividades) || 'No especificado'}</td>
-                        <td style="vertical-align: top;">${limpiarContenido(semana.evaluacion) || 'No especificado'}</td>
-                    </tr>
-                </table>
-            </div>`;
+                    <div style="margin-bottom:6mm; page-break-inside:avoid;">
+                        <div class="encabezado-semana">📅 Semana ${index + 1} - ${semana.lecciones}</div>
+                        <table class="tabla">
+                            <tr><th width="33%">Indicadores de logro</th><th width="34%">Estrategias de Mediación</th><th width="33%">Indicadores de evaluación</th></tr>
+                            <tr><td style="vertical-align:top;">${formatearIndicadores(limpiarContenido(semana.indicadores)) || 'No especificado'}</td>
+                                <td style="vertical-align:top;">${limpiarContenido(semana.actividades) || 'No especificado'}</td>
+                                <td style="vertical-align:top;">${limpiarContenido(semana.evaluacion) || 'No especificado'}</td>
+                            </tr>
+                            <tr><th colspan="3" style="background:#f0f0f0; text-align:left;">Eje transversal: ${ejeNombre}</th></tr>
+                        </table>
+                    </div>`;
                 });
                 contenidoHTML += `</div>`;
             }
-
+            
             if (exportarReflexiones) {
                 contenidoHTML += `
-        <div class="seccion">
-            <div class="titulo-seccion">REFLEXIONES DOCENTES</div>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm;">
-                <div style="background: white; border: 1pt solid #ddd; border-radius: 2mm; padding: 3mm;"><div style="font-weight: bold; color: #28a745; margin-bottom: 2mm;">¿Qué funcionó?</div>${limpiarContenido(document.getElementById('queFunciono').value) || '<em>No especificado</em>'}</div>
-                <div style="background: white; border: 1pt solid #ddd; border-radius: 2mm; padding: 3mm;"><div style="font-weight: bold; color: #dc3545; margin-bottom: 2mm;">¿Qué no funcionó?</div>${limpiarContenido(document.getElementById('queNoFunciono').value) || '<em>No especificado</em>'}</div>
-                <div style="background: white; border: 1pt solid #ddd; border-radius: 2mm; padding: 3mm;"><div style="font-weight: bold; color: #ffc107; margin-bottom: 2mm;">¿Qué mejorar?</div>${limpiarContenido(document.getElementById('queMejorar').value) || '<em>No especificado</em>'}</div>
-            </div>
-            <div style="background: white; border: 1pt solid #ddd; border-radius: 2mm; padding: 3mm; margin-top: 4mm;">
-                <div style="font-weight: bold; color: #45258F; margin-bottom: 2mm;">Observaciones</div>
-                ${limpiarContenido(document.getElementById('observaciones').value) || '<em>No especificado</em>'}
-            </div>
-        </div>`;
+                <div class="seccion">
+                    <div class="titulo-seccion">REFLEXIONES DOCENTES</div>
+                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:3mm;">
+                        <div style="background:white; border:1pt solid #ddd; border-radius:2mm; padding:3mm;"><div style="font-weight:bold; color:#28a745; margin-bottom:2mm;">¿Qué funcionó?</div>${limpiarContenido(document.getElementById('queFunciono').value) || '<em>No especificado</em>'}</div>
+                        <div style="background:white; border:1pt solid #ddd; border-radius:2mm; padding:3mm;"><div style="font-weight:bold; color:#dc3545; margin-bottom:2mm;">¿Qué no funcionó?</div>${limpiarContenido(document.getElementById('queNoFunciono').value) || '<em>No especificado</em>'}</div>
+                        <div style="background:white; border:1pt solid #ddd; border-radius:2mm; padding:3mm;"><div style="font-weight:bold; color:#ffc107; margin-bottom:2mm;">¿Qué mejorar?</div>${limpiarContenido(document.getElementById('queMejorar').value) || '<em>No especificado</em>'}</div>
+                    </div>
+                    <div style="background:white; border:1pt solid #ddd; border-radius:2mm; padding:3mm; margin-top:4mm;">
+                        <div style="font-weight:bold; color:#45258F; margin-bottom:2mm;">Observaciones</div>
+                        ${limpiarContenido(document.getElementById('observaciones').value) || '<em>No especificado</em>'}
+                    </div>
+                </div>`;
             }
-
+            
             if (incluirPiePagina) {
                 contenidoHTML += `
-        <div style="text-align: center; margin-top: 8mm; padding-top: 4mm; border-top: 1pt solid #45258F;">
-            <div style="font-weight: bold; color: #45258F;">DIDI - Departamento de Investigación, Desarrollo e Implementación</div>
-            <div style="color: #6c47c9;">Dirección de Recursos Tecnológicos en Educación</div>
-        </div>`;
+                <div style="text-align:center; margin-top:8mm; padding-top:4mm; border-top:1pt solid #45258F;">
+                    <div style="font-weight:bold; color:#45258F;">DIDI - Departamento de Investigación, Desarrollo e Implementación</div>
+                    <div style="color:#6c47c9;">Dirección de Recursos Tecnológicos en Educación</div>
+                </div>`;
             }
-
+            
             contenidoHTML += `
-    </div>
-    
-    <button class="boton-imprimir-flotante no-imprimir" onclick="window.print()">🖨️ IMPRIMIR PDF AHORA</button>
-    
-    <div class="instrucciones-imprimir no-imprimir">
-        <h4 style="margin-bottom: 10px;">📋 Instrucciones rápidas</h4>
-        <ol style="margin-left: 15px; font-size: 12px;">
-            <li>Haga clic en el botón amarillo</li>
-            <li>Seleccione "Guardar como PDF"</li>
-            <li>Orientación: Horizontal</li>
-        </ol>
-        <button onclick="this.parentElement.style.display='none'" style="margin-top: 10px; background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Cerrar</button>
-    </div>
-</body>
-</html>`;
-
+                </div>
+                <button class="boton-imprimir-flotante no-imprimir" onclick="window.print()">🖨️ IMPRIMIR PDF AHORA</button>
+                <div class="instrucciones-imprimir no-imprimir">
+                    <h4 style="margin-bottom:10px;">📋 Instrucciones rápidas</h4>
+                    <ol style="margin-left:15px; font-size:12px;"><li>Haga clic en el botón amarillo</li><li>Seleccione "Guardar como PDF"</li><li>Orientación: Horizontal</li></ol>
+                    <button onclick="this.parentElement.style.display='none'" style="margin-top:10px; background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Cerrar</button>
+                </div>
+            </body>
+            </html>`;
+            
             const ventanaPreview = window.open('', '_blank');
             if (!ventanaPreview) {
                 alert('Por favor, permita ventanas emergentes para este sitio');
                 return;
             }
-            
             ventanaPreview.document.open();
             ventanaPreview.document.write(contenidoHTML);
             ventanaPreview.document.close();
@@ -4658,54 +4653,19 @@
         function renderizarTablaEditable() {
             const tbody = document.getElementById('modalTablaCuerpo');
             if (!tbody) return;
-            
             let html = '';
-            
             distribucionActual.semanas.forEach((semana, index) => {
                 html += `
-                    <tr style="border-bottom: 1px solid #ddd;">
-                        <td style="padding: 12px; vertical-align: top;">
-                            <strong>Semana ${index + 1}</strong>
-                        </td>
-                        <td style="padding: 12px; vertical-align: top;">
-                            <input type="text" value="${semana.lecciones}" 
-                                   class="input-field" style="width: 100px;"
-                                   onchange="actualizarLeccionesModal(${index}, this.value)">
-                        </td>
-                        <td style="padding: 12px; vertical-align: top;">
-                            <select class="select-field" style="width: 100%;"
-                                    onchange="cambiarAreaModal(${index}, this.value)">
-                                ${generarOpcionesAreasModal(semana.area)}
-                            </select>
-                        </td>
-                        <td style="padding: 12px; vertical-align: top;">
-                            <div style="max-height: 150px; overflow-y: auto; padding: 5px; border: 1px solid #eee; border-radius: 4px;">
-                                ${generarCheckboxesSaberesModal(semana.saberes, index)}
-                            </div>
-                        </td>
-                        <td style="padding: 12px; vertical-align: top;">
-                            <div id="indicadores-${index}" style="max-height: 150px; overflow-y: auto; font-size: 11px; background: #f9f9f9; padding: 8px; border-radius: 4px;">
-                                ${semana.indicadores.map(i => `• ${i}`).join('<br>')}
-                            </div>
-                        </td>
-                        <td style="padding: 12px; vertical-align: top;">
-                            <select class="select-field" style="width: 100px;"
-                                    onchange="cambiarMetodologiaModal(${index}, this.value)">
-                                <option value="ABJ" ${semana.metodologia === 'ABJ' ? 'selected' : ''}>ABJ</option>
-                                <option value="ABR" ${semana.metodologia === 'ABR' ? 'selected' : ''}>ABR</option>
-                                <option value="APD" ${semana.metodologia === 'APD' ? 'selected' : ''}>APD</option>
-                            </select>
-                        </td>
-                        <td style="padding: 12px; vertical-align: top;">
-                            <button onclick="eliminarSemanaModal(${index})" 
-                                    class="btn-eliminar-semana" 
-                                    style="width: 28px; height: 28px;"
-                                    ${distribucionActual.semanas.length <= 1 ? 'disabled' : ''}>✕</button>
-                        </td>
-                    </tr>
-                `;
+                <tr style="border-bottom:1px solid #ddd;">
+                    <td style="padding:12px; vertical-align:top;"><strong>Semana ${index+1}</strong></td>
+                    <td style="padding:12px; vertical-align:top;"><input type="text" value="${semana.lecciones}" class="input-field" style="width:100px;" onchange="actualizarLeccionesModal(${index}, this.value)"></td>
+                    <td style="padding:12px; vertical-align:top;"><select class="select-field" style="width:100%;" onchange="cambiarAreaModal(${index}, this.value)">${generarOpcionesAreasModal(semana.area)}</select></td>
+                    <td style="padding:12px; vertical-align:top;"><div style="max-height:150px; overflow-y:auto; padding:5px; border:1px solid #eee; border-radius:4px;">${generarCheckboxesSaberesModal(semana.saberes, index)}</div></td>
+                    <td style="padding:12px; vertical-align:top;"><div id="indicadores-${index}" style="max-height:150px; overflow-y:auto; font-size:11px; background:#f9f9f9; padding:8px; border-radius:4px;">${semana.indicadores.map(i => `• ${i}`).join('<br>')}</div></td>
+                    <td style="padding:12px; vertical-align:top;"><select class="select-field" style="width:100px;" onchange="cambiarMetodologiaModal(${index}, this.value)"><option value="ABJ" ${semana.metodologia==='ABJ'?'selected':''}>ABJ</option><option value="ABR" ${semana.metodologia==='ABR'?'selected':''}>ABR</option><option value="APD" ${semana.metodologia==='APD'?'selected':''}>APD</option></select></td>
+                    <td style="padding:12px; vertical-align:top;"><button onclick="eliminarSemanaModal(${index})" class="btn-eliminar-semana" style="width:28px; height:28px;" ${distribucionActual.semanas.length<=1?'disabled':''}>✕</button></td>
+                </tr>`;
             });
-            
             tbody.innerHTML = html;
         }
 
@@ -4896,6 +4856,15 @@
         function cerrarModalDistribucion() {
             document.getElementById('modalDistribucion').style.display = 'none';
             distribucionActual = null;
+        }
+
+        function obtenerNombreEje(valor) {
+            const mapa = {
+                'ciudadania': 'Ciudadanía y ética digital',
+                'pensamiento': 'Pensamiento computacional',
+                'emprendimiento': 'Emprendimiento e Innovación'
+            };
+            return mapa[valor] || valor;
         }
 
         // ====================================================
