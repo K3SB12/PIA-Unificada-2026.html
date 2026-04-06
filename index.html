@@ -3201,137 +3201,106 @@
             cerrarExportModal();
         }
 
-function exportarAPDF() {
-    const nombreArchivo = document.getElementById('nombreArchivo').value || 'Planeamiento-Didáctico';
-    const exportarInformacionGeneral = document.getElementById('exportarInformacionGeneral')?.checked ?? true;
-    const exportarSaberes = document.getElementById('exportarSaberes')?.checked ?? true;
-    const exportarSemanas = document.getElementById('exportarSemanas')?.checked ?? true;
-    const exportarReflexiones = document.getElementById('exportarReflexiones')?.checked ?? true;
-    const exportarSaberesGlobales = document.getElementById('exportarSaberesGlobales')?.checked ?? true;
-    const incluirEncabezado = document.getElementById('incluirEncabezado')?.checked ?? true;
-    const incluirPiePagina = document.getElementById('incluirPiePagina')?.checked ?? true;
-    
-    // --- RECOLECTAR SABERES GLOBALES DE TODAS LAS SEMANAS ---
-    let todosConceptuales = new Set();
-    let todosProcedimentales = new Set();
-    let todosActitudinales = new Set();
-    
-    const procMap = {
-        'reconoce': 'Reconoce patrones', 'abstrae': 'Abstrae', 'generaliza': 'Generaliza',
-        'transfiere': 'Transfiere', 'modulariza': 'Modulariza', 'formula': 'Formula algoritmos',
-        'remezcla': 'Remezcla', 'depura': 'Depura', 'programa': 'Programa',
-        'comunica': 'Comunica', 'colabora': 'Colabora', 'piensa': 'Piensa creativamente',
-        'maneja': 'Maneja tecnologías éticamente'
-    };
-    const actMap = {
-        'gusto': 'Gusto por la precisión', 'aprender': 'Aprender del error',
-        'flexibilidad': 'Flexibilidad', 'tolerancia': 'Tolerancia a la frustración'
-    };
-    
-    semanas.forEach(semana => {
-        semana.saberes.forEach(s => todosConceptuales.add(s));
-        semana.procedimentales.forEach(p => todosProcedimentales.add(procMap[p] || p));
-        semana.actitudinales.forEach(a => todosActitudinales.add(actMap[a] || a));
-    });
-    
-    function limpiarContenido(texto) {
-        if (!texto || texto.toString().trim() === '') return '';
-        return texto.toString().trim();
-    }
-    
-    function formatearIndicadores(texto) {
-        if (!texto) return '';
-        const partes = texto.split(/\.\s+/);
-        if (partes.length > 1) {
-            return partes.map(p => p.trim()).filter(p => p).map(p => `• ${p}.`).join('<br>');
-        }
-        return texto;
-    }
-
+        function exportarAPDF() {
+            const nombreArchivo = document.getElementById('nombreArchivo').value || 'Planeamiento-Didáctico';
+            const exportarInformacionGeneral = document.getElementById('exportarInformacionGeneral')?.checked ?? true;
+            const exportarSaberes = document.getElementById('exportarSaberes')?.checked ?? true;
+            const exportarSemanas = document.getElementById('exportarSemanas')?.checked ?? true;
+            const exportarReflexiones = document.getElementById('exportarReflexiones')?.checked ?? true;
+            const exportarSaberesGlobales = document.getElementById('exportarSaberesGlobales')?.checked ?? true;
+            const incluirEncabezado = document.getElementById('incluirEncabezado')?.checked ?? true;
+            const incluirPiePagina = document.getElementById('incluirPiePagina')?.checked ?? true;
+            
+            // --- RECOLECTAR SABERES GLOBALES DE TODAS LAS SEMANAS ---
+            let todosConceptuales = new Set();
+            let todosProcedimentales = new Set();
+            let todosActitudinales = new Set();
+            
+            const procMap = {
+                'reconoce': 'Reconoce patrones', 'abstrae': 'Abstrae', 'generaliza': 'Generaliza',
+                'transfiere': 'Transfiere', 'modulariza': 'Modulariza', 'formula': 'Formula algoritmos',
+                'remezcla': 'Remezcla', 'depura': 'Depura', 'programa': 'Programa',
+                'comunica': 'Comunica', 'colabora': 'Colabora', 'piensa': 'Piensa creativamente',
+                'maneja': 'Maneja tecnologías éticamente'
+            };
+            const actMap = {
+                'gusto': 'Gusto por la precisión', 'aprender': 'Aprender del error',
+                'flexibilidad': 'Flexibilidad', 'tolerancia': 'Tolerancia a la frustración'
+            };
+            
+            semanas.forEach(semana => {
+                semana.saberes.forEach(s => todosConceptuales.add(s));
+                semana.procedimentales.forEach(p => todosProcedimentales.add(procMap[p] || p));
+                semana.actitudinales.forEach(a => todosActitudinales.add(actMap[a] || a));
+            });
+            
+            function limpiarContenido(texto) {
+                if (!texto || texto.toString().trim() === '') return '';
+                return texto.toString().trim();
+            }
+            
+            function formatearIndicadores(texto) {
+                if (!texto) return '';
+                const partes = texto.split(/\.\s+/);
+                if (partes.length > 1) {
+                    return partes.map(p => p.trim()).filter(p => p).map(p => `• ${p}.`).join('<br>');
+                }
+                return texto;
+            }
+            
             let contenidoHTML = `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>${nombreArchivo}</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Poppins', sans-serif; font-size: 10pt; line-height: 1.3; color: #000; margin: 0; padding: 15mm; }
-        .pagina { width: 297mm; padding: 10mm; }
-        .encabezado-institucional { display: flex; align-items: center; gap: 15px; margin-bottom: 25px; padding: 15px; border: 2px solid #45258F; border-radius: 15px; }
-        .escudo-pdf { width: 100px; height: 100px; border-radius: 50%; overflow: hidden; border: 2px solid #45258F; display: flex; align-items: center; justify-content: center; background: white; }
-        .escudo-pdf img { width: 100%; height: 100%; object-fit: contain; }
-        .titulo-ministerio { font-size: 12pt; font-weight: bold; color: #45258F; }
-        .titulo-gobierno { font-size: 11pt; font-weight: 600; color: #6c47c9; }
-        .titulo-principal { text-align: center; font-size: 14pt; font-weight: bold; color: white; background-color: #45258F; padding: 4mm; margin: 6mm 0 4mm 0; border-radius: 2mm; }
-        .subtitulo { text-align: center; font-size: 11pt; color: #6c47c9; margin-bottom: 8mm; }
-        .seccion { margin-bottom: 6mm; page-break-inside: avoid; }
-        .titulo-seccion { background-color: #45258F; color: white; font-weight: bold; text-align: center; padding: 3mm; margin: 4mm 0 3mm 0; border-radius: 2mm; font-size: 11pt; }
-        .tabla { width: 100%; border-collapse: collapse; margin: 3mm 0; }
-        .tabla th { background-color: #45258F; color: white; font-weight: bold; text-align: center; padding: 2mm; border: 0.5pt solid black; font-size: 10pt; }
-        .tabla td { border: 0.5pt solid #ccc; padding: 2mm; vertical-align: top; font-size: 10pt; }
-        .encabezado-semana { background-color: #45258F; color: white; font-weight: bold; padding: 2mm; font-size: 11pt; border-radius: 2mm 2mm 0 0; }
-        
-        .no-imprimir { 
-            display: block !important; 
-        }
-        
-        @media print {
-            .no-imprimir { 
-                display: none !important; 
-            }
-            @page { size: A4 landscape; margin: 15mm; } 
-            body { margin: 0; padding: 15mm; } 
-            .titulo-seccion, .encabezado-semana, .tabla th { 
-                background-color: #45258F !important; 
-                -webkit-print-color-adjust: exact; 
-                print-color-adjust: exact; 
-            }
-        }
-        
-        .boton-imprimir-flotante {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: #ffc107;
-            color: #000;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 50px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 999999;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            border: 2px solid #45258F;
-            animation: pulse 2s infinite;
-        }
-        
-        .instrucciones-imprimir {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, #45258F, #6c47c9);
-            color: white;
-            padding: 15px 20px;
-            border-radius: 10px;
-            z-index: 999999;
-            font-size: 14px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            border-left: 4px solid #ffc107;
-            max-width: 300px;
-        }
-        
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-    </style>
-</head>
-<body>
-    <div class="pagina">`;
-
-           if (incluirEncabezado) {
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>${nombreArchivo}</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { font-family: 'Poppins', sans-serif; font-size: 10pt; line-height: 1.3; color: #000; margin: 0; padding: 15mm; }
+                    .pagina { width: 297mm; padding: 10mm; }
+                    .encabezado-institucional { display: flex; align-items: center; gap: 15px; margin-bottom: 25px; padding: 15px; border: 2px solid #45258F; border-radius: 15px; }
+                    .escudo-pdf { width: 100px; height: 100px; border-radius: 50%; overflow: hidden; border: 2px solid #45258F; display: flex; align-items: center; justify-content: center; background: white; }
+                    .escudo-pdf img { width: 100%; height: 100%; object-fit: contain; }
+                    .titulo-ministerio { font-size: 12pt; font-weight: bold; color: #45258F; }
+                    .titulo-gobierno { font-size: 11pt; font-weight: 600; color: #6c47c9; }
+                    .titulo-principal { text-align: center; font-size: 14pt; font-weight: bold; color: white; background-color: #45258F; padding: 4mm; margin: 6mm 0 4mm 0; border-radius: 2mm; }
+                    .subtitulo { text-align: center; font-size: 11pt; color: #6c47c9; margin-bottom: 8mm; }
+                    .seccion { margin-bottom: 6mm; page-break-inside: avoid; }
+                    .titulo-seccion { background-color: #45258F; color: white; font-weight: bold; text-align: center; padding: 3mm; margin: 4mm 0 3mm 0; border-radius: 2mm; font-size: 11pt; }
+                    .tabla { width: 100%; border-collapse: collapse; margin: 3mm 0; }
+                    .tabla th { background-color: #45258F; color: white; font-weight: bold; text-align: center; padding: 2mm; border: 0.5pt solid black; font-size: 10pt; }
+                    .tabla td { border: 0.5pt solid #ccc; padding: 2mm; vertical-align: top; font-size: 10pt; }
+                    .encabezado-semana { background-color: #45258F; color: white; font-weight: bold; padding: 2mm; font-size: 11pt; border-radius: 2mm 2mm 0 0; }
+                    .saberes-globales { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin-bottom: 6mm; }
+                    .saberes-caja { background: white; border: 1pt solid #ddd; border-radius: 2mm; padding: 3mm; }
+                    .saberes-caja h4 { color: #45258F; margin-bottom: 2mm; font-size: 11pt; }
+                    @media print {
+                        .no-imprimir { display: none !important; }
+                        @page { size: A4 landscape; margin: 15mm; } 
+                        body { margin: 0; padding: 15mm; } 
+                        .titulo-seccion, .encabezado-semana, .tabla th { 
+                            background-color: #45258F !important; 
+                            -webkit-print-color-adjust: exact; 
+                            print-color-adjust: exact; 
+                        }
+                    }
+                    .boton-imprimir-flotante {
+                        position: fixed; bottom: 30px; right: 30px; background: #ffc107; color: #000;
+                        border: none; padding: 15px 30px; border-radius: 50px; font-size: 18px;
+                        font-weight: bold; cursor: pointer; z-index: 999999; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                        border: 2px solid #45258F;
+                    }
+                    .instrucciones-imprimir {
+                        position: fixed; top: 20px; right: 20px; background: linear-gradient(135deg, #45258F, #6c47c9);
+                        color: white; padding: 15px 20px; border-radius: 10px; z-index: 999999;
+                        font-size: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border-left: 4px solid #ffc107;
+                        max-width: 300px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="pagina">`;
+            
+            if (incluirEncabezado) {
                 let escudoHTML = '';
                 const escudoImg = document.getElementById('escudoInstitucional');
                 if (escudoImg && escudoImg.src && escudoImg.src.startsWith('data:image')) {
@@ -3487,7 +3456,7 @@ function exportarAPDF() {
             ventanaPreview.document.write(contenidoHTML);
             ventanaPreview.document.close();
         }
-
+        
         function generarPromptCompleto() {
             const ciclo = document.getElementById('ciclo').value;
             const nivel = document.getElementById('nivel').value;
