@@ -1,1 +1,2 @@
 # PIA-Unificada-2026.html
+Se actualiza la Plantilla de Planeamiento PIA con los ajustes de proyección de semanas, aplicar a las semanas la proyección realizada según criterio docente o el brindado por sugerencia o recomendación de la IA. Botón de formato para editar las columnas de Indicadores de logro, estrategias de mediación e Indicadores de evaluación. Se exportan los saberes de forma global y se agregan los ejes transversales por semana. La plantilla cuenta con un espacio para agregar el escudo y el lema de la institución.
