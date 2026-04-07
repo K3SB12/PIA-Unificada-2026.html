@@ -3253,40 +3253,84 @@
             <head>
                 <meta charset="UTF-8">
                 <title>${nombreArchivo}</title>
-               <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body { font-family: 'Poppins', sans-serif; font-size: 10pt; line-height: 1.3; color: #000; margin: 0; padding: 8mm 12mm; overflow-x: hidden; background: white; width: 100%; max-width: 100%; }
-                .pagina { width: 100%; max-width: 100%; overflow-x: hidden; }
-                .encabezado-institucional { display: flex; align-items: center; gap: 15px; margin-bottom: 25px; padding: 15px; border: 2px solid #45258F; border-radius: 15px; flex-wrap: wrap; }
-                .escudo-pdf { width: 100px; height: 100px; border-radius: 50%; overflow: hidden; border: 2px solid #45258F; display: flex; align-items: center; justify-content: center; background: white; flex-shrink: 0; }
-                .escudo-pdf img { width: 100%; height: 100%; object-fit: contain; }
-                .titulo-ministerio { font-size: 12pt; font-weight: bold; color: #45258F; }
-                .titulo-gobierno { font-size: 11pt; font-weight: 600; color: #6c47c9; }
-                .titulo-principal { text-align: center; font-size: 14pt; font-weight: bold; color: white; background-color: #45258F; padding: 4mm; margin: 6mm 0 4mm 0; border-radius: 2mm; }
-                .subtitulo { text-align: center; font-size: 11pt; color: #6c47c9; margin-bottom: 8mm; }
-                .seccion { margin-bottom: 6mm; page-break-inside: avoid; max-width: 100%; overflow-x: hidden; }
-                .titulo-seccion { background-color: #45258F; color: white; font-weight: bold; text-align: center; padding: 3mm; margin: 4mm 0 3mm 0; border-radius: 2mm; font-size: 11pt; }
-                .tabla { width: 100%; border-collapse: collapse; margin: 3mm 0; table-layout: fixed; }
-                .tabla th, .tabla td { border: 0.5pt solid #ccc; padding: 2mm; vertical-align: top; font-size: 10pt; background-color: white; color: black; word-break: break-word; overflow-wrap: break-word; white-space: normal; }
-                .tabla th { background-color: #45258F; color: white; border: 0.5pt solid black; text-align: center; }
-                /* Asignar anchos específicos a las columnas de la tabla de áreas y resultados */
-                .tabla:not(.otra-cosa) th:first-child, .tabla:not(.otra-cosa) td:first-child { width: 25%; }
-                .tabla:not(.otra-cosa) th:last-child, .tabla:not(.otra-cosa) td:last-child { width: 75%; }
-                /* Para la tabla de información general (4 columnas) */
-                .tabla.informacion-general th, .tabla.informacion-general td { width: 25%; }
-                /* Para la tabla de planificación por semanas (3 columnas) */
-                .tabla.planificacion th, .tabla.planificacion td { width: 33.33%; }
-                .encabezado-semana { background-color: #45258F; color: white; font-weight: bold; padding: 2mm; font-size: 11pt; border-radius: 2mm 2mm 0 0; }
-                .saberes-globales { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin-bottom: 6mm; max-width: 100%; }
-                .saberes-caja { background: white; border: 1pt solid #ddd; border-radius: 2mm; padding: 3mm; word-break: break-word; overflow-wrap: break-word; }
-                .saberes-caja h4 { color: #45258F; margin-bottom: 2mm; font-size: 11pt; }
-                .pie-pagina { page-break-inside: avoid; page-break-before: auto; margin-top: 5mm; text-align: center; border-top: 1pt solid #45258F; padding-top: 3mm; }
-                @media print { .no-imprimir { display: none !important; } @page { size: A4 landscape; margin: 12mm; } body { margin: 0; padding: 12mm; overflow-x: visible; } .tabla { table-layout: auto; } .tabla th, .tabla td { word-break: normal; } .titulo-seccion, .encabezado-semana, .tabla th { background-color: #45258F !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-                .boton-imprimir-flotante { position: fixed; bottom: 30px; right: 30px; background: #ffc107; color: #000; border: none; padding: 15px 30px; border-radius: 50px; font-size: 18px; font-weight: bold; cursor: pointer; z-index: 999999; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: 2px solid #45258F; }
-                .instrucciones-imprimir { position: fixed; top: 20px; right: 20px; background: linear-gradient(135deg, #45258F, #6c47c9); color: white; padding: 15px 20px; border-radius: 10px; z-index: 999999; font-size: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border-left: 4px solid #ffc107; max-width: 300px; }
-                @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-                .boton-imprimir-flotante { animation: pulse 2s infinite; }
-                </style>
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body { font-family: 'Poppins', sans-serif; font-size: 10pt; line-height: 1.3; color: #000; margin: 0; padding: 15mm; background: white; }
+                        /* Para pantalla (ventana emergente): ancho automático, sin scroll horizontal */
+                        .pagina { width: auto; max-width: 100%; padding: 10mm; margin: 0 auto; }
+                        .encabezado-institucional { display: flex; align-items: center; gap: 15px; margin-bottom: 25px; padding: 15px; border: 2px solid #45258F; border-radius: 15px; flex-wrap: wrap; }
+                        .escudo-pdf { width: 100px; height: 100px; border-radius: 50%; overflow: hidden; border: 2px solid #45258F; display: flex; align-items: center; justify-content: center; background: white; flex-shrink: 0; }
+                        .escudo-pdf img { width: 100%; height: 100%; object-fit: contain; }
+                        .titulo-ministerio { font-size: 12pt; font-weight: bold; color: #45258F; }
+                        .titulo-gobierno { font-size: 11pt; font-weight: 600; color: #6c47c9; }
+                        .titulo-principal { text-align: center; font-size: 14pt; font-weight: bold; color: white; background-color: #45258F; padding: 4mm; margin: 6mm 0 4mm 0; border-radius: 2mm; }
+                        .subtitulo { text-align: center; font-size: 11pt; color: #6c47c9; margin-bottom: 8mm; }
+                        .seccion { margin-bottom: 6mm; page-break-inside: avoid; }
+                        .titulo-seccion { background-color: #45258F; color: white; font-weight: bold; text-align: center; padding: 3mm; margin: 4mm 0 3mm 0; border-radius: 2mm; font-size: 11pt; }
+                        .tabla { width: 100%; border-collapse: collapse; margin: 3mm 0; }
+                        .tabla th { background-color: #45258F; color: white; font-weight: bold; text-align: center; padding: 2mm; border: 0.5pt solid black; font-size: 10pt; }
+                        .tabla td { border: 0.5pt solid #ccc; padding: 2mm; vertical-align: top; font-size: 10pt; word-break: break-word; overflow-wrap: break-word; } /* ← NUEVO: rompe palabras largas */
+                        .encabezado-semana { background-color: #45258F; color: white; font-weight: bold; padding: 2mm; font-size: 11pt; border-radius: 2mm 2mm 0 0; }
+                        
+                        .no-imprimir { 
+                            display: block !important; 
+                        }
+                        
+                        @media print {
+                            .no-imprimir { 
+                                display: none !important; 
+                            }
+                            @page { size: A4 landscape; margin: 15mm; } 
+                            body { margin: 0; padding: 15mm; } 
+                            /* Para impresión, restauramos el ancho completo */
+                            .pagina { width: 100%; padding: 0; }
+                            .titulo-seccion, .encabezado-semana, .tabla th { 
+                                background-color: #45258F !important; 
+                                -webkit-print-color-adjust: exact; 
+                                print-color-adjust: exact; 
+                            }
+                            .tabla td { word-break: normal; } /* En impresión puede usar el normal */
+                        }
+                        
+                        .boton-imprimir-flotante {
+                            position: fixed;
+                            bottom: 30px;
+                            right: 30px;
+                            background: #ffc107;
+                            color: #000;
+                            border: none;
+                            padding: 15px 30px;
+                            border-radius: 50px;
+                            font-size: 18px;
+                            font-weight: bold;
+                            cursor: pointer;
+                            z-index: 999999;
+                            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                            border: 2px solid #45258F;
+                            animation: pulse 2s infinite;
+                        }
+                        
+                        .instrucciones-imprimir {
+                            position: fixed;
+                            top: 20px;
+                            right: 20px;
+                            background: linear-gradient(135deg, #45258F, #6c47c9);
+                            color: white;
+                            padding: 15px 20px;
+                            border-radius: 10px;
+                            z-index: 999999;
+                            font-size: 14px;
+                            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                            border-left: 4px solid #ffc107;
+                            max-width: 300px;
+                        }
+                        
+                        @keyframes pulse {
+                            0% { transform: scale(1); }
+                            50% { transform: scale(1.05); }
+                            100% { transform: scale(1); }
+                        }
+                    </style>
             </head>
             <body>
                 <div class="pagina">`;
