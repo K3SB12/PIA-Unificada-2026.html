@@ -3275,12 +3275,46 @@
                     .saberes-caja h4 { color: #45258F; margin-bottom: 2mm; font-size: 11pt; } 
                     @media print {
                         .no-imprimir { display: none !important; }
-                        @page { size: A4 landscape; margin: 15mm; } 
-                        body { margin: 0; padding: 15mm; } 
-                        .titulo-seccion, .encabezado-semana, .tabla th { 
-                            background-color: #45258F !important; 
-                            -webkit-print-color-adjust: exact; 
-                            print-color-adjust: exact; 
+    
+                        @page {
+                            size: A4 landscape;
+                            margin: 12mm; /* Márgenes más pequeños para ahorrar papel */
+                        }
+                        
+                        body {
+                            margin: 0;
+                            padding: 0; /* Elimina padding extra */
+                        }
+                        
+                        .pagina {
+                            width: 100%;
+                            padding: 0;
+                        }
+                        
+                        /* Controla que el pie de página no se aísle */
+                        .pie-pagina {
+                            page-break-before: avoid;  /* No saltar antes del pie */
+                            page-break-after: avoid;   /* No saltar después */
+                            margin-top: 2mm;
+                            position: relative;
+                            bottom: 0;
+                        }
+                        
+                        /* Evita que se corten secciones importantes */
+                        .seccion, .encabezado-semana, .saberes-globales {
+                            page-break-inside: avoid;
+                        }
+                        
+                        /* Permite que las tablas largas se corten, pero intenta no cortar filas */
+                        .tabla tr {
+                            page-break-inside: avoid;
+                        }
+                        
+                        /* Colores */
+                        .titulo-seccion, .encabezado-semana, .tabla th {
+                            background-color: #45258F !important;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
                         }
                     }
                     .boton-imprimir-flotante {
