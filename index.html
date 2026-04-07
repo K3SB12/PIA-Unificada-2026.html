@@ -3272,7 +3272,7 @@
                     .encabezado-semana { background-color: #45258F; color: white; font-weight: bold; padding: 2mm; font-size: 11pt; border-radius: 2mm 2mm 0 0; }
                     .saberes-globales { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin-bottom: 6mm; }
                     .saberes-caja { background: white; border: 1pt solid #ddd; border-radius: 2mm; padding: 3mm; }
-                    .saberes-caja h4 { color: #45258F; margin-bottom: 2mm; font-size: 11pt; }
+                    .saberes-caja h4 { color: #45258F; margin-bottom: 2mm; font-size: 11pt; } 
                     @media print {
                         .no-imprimir { display: none !important; }
                         @page { size: A4 landscape; margin: 15mm; } 
@@ -3416,7 +3416,7 @@
                                 <td style="vertical-align:top;">${limpiarContenido(semana.actividades) || 'No especificado'}</td>
                                 <td style="vertical-align:top;">${limpiarContenido(semana.evaluacion) || 'No especificado'}</td>
                             </tr>
-                            <tr><th colspan="3" style="background:#f0f0f0; text-align:left;">Eje transversal: ${ejeNombre}</th></tr>
+                            <tr><th colspan="3" style="background:#45258F; color: white; text-align:left;">Eje transversal: ${ejeNombre}</th></tr>
                         </table>
                     </div>`;
                 });
