@@ -4606,194 +4606,288 @@
 
         let distribucionActual = null;
 
+        // 1. Abrir modal de distribución (agrupa saberes por área y los distribuye)
         function abrirDistribucionEditable() {
             if (saberesProyeccionSeleccionados.size === 0) {
-                mostrarMensaje('Seleccione saberes en la proyección primero', true);
+                mostrarMensaje('⚠️ Seleccione al menos un saber conceptual en la proyección.', true);
                 return;
             }
-            
-            const saberesArray = Array.from(saberesProyeccionSeleccionados);
-            const semanasActuales = semanas.length || 4;
-            const saberesPorSemana = Math.ceil(saberesArray.length / semanasActuales);
-            
-            const distribucion = {
-                semanas: []
-            };
-            
-            for (let i = 0; i < semanasActuales; i++) {
-                const saberesSemana = saberesArray.slice(
-                    i * saberesPorSemana, 
-                    Math.min((i + 1) * saberesPorSemana, saberesArray.length)
-                );
-                
-                const indicadores = obtenerIndicadoresPorSaberesNuevo(saberesSemana, document.getElementById('nivel').value);
-                
+        
+            const nivel = document.getElementById('nivel').value;
+            if (!nivel) {
+                mostrarMensaje('⚠️ Seleccione primero el nivel educativo.', true);
+                return;
+            }
+        
+            // Agrupar saberes seleccionados por área
+            const saberesPorArea = new Map(); // area -> array de nombres de saberes
+            for (let saber of saberesProyeccionSeleccionados) {
+                let areaEncontrada = null;
+                // Buscar en Módulo 1 y 2
+                for (let modulo of ['Módulo 1', 'Módulo 2']) {
+                    if (PNFT_DATA[nivel] && PNFT_DATA[nivel][modulo]) {
+                        for (let [area, contenido] of Object.entries(PNFT_DATA[nivel][modulo])) {
+                            if (contenido.saberes.some(s => s.nombre === saber)) {
+                                areaEncontrada = area;
+                                break;
+                            }
+                        }
+                        if (areaEncontrada) break;
+                    }
+                }
+                if (areaEncontrada) {
+                    if (!saberesPorArea.has(areaEncontrada)) saberesPorArea.set(areaEncontrada, []);
+                    saberesPorArea.get(areaEncontrada).push(saber);
+                } else {
+                    console.warn(`Saber "${saber}" no tiene área asignada.`);
+                }
+            }
+        
+            if (saberesPorArea.size === 0) {
+                mostrarMensaje('⚠️ No se pudieron determinar las áreas de los saberes seleccionados.', true);
+                return;
+            }
+        
+            // Determinar número de semanas (máximo entre semanas actuales o mínimo necesario)
+            let semanasActuales = semanas.length || 4;
+            let totalSaberes = saberesProyeccionSeleccionados.size;
+            let minSemanas = Math.ceil(totalSaberes / 3); // aprox 3 saberes por semana
+            let numSemanas = Math.max(semanasActuales, minSemanas);
+        
+            // Crear distribución inicial vacía
+            let distribucion = { semanas: [] };
+            for (let i = 0; i < numSemanas; i++) {
                 distribucion.semanas.push({
                     lecciones: `Lecciones ${i*2+1} y ${(i+1)*2}`,
-                    area: areasProyeccion[0] || 'Apropiación tecnológica y Digital',
-                    saberes: saberesSemana,
-                    indicadores: indicadores,
+                    areas: [],          // ahora es array de áreas
+                    saberes: [],        // array de nombres de saberes
+                    indicadores: [],
                     metodologia: document.getElementById('metodologiaActiva').value || 'ABJ'
                 });
             }
-            
+        
+            // Distribuir saberes por área equitativamente entre semanas
+            let semanaIdx = 0;
+            for (let [area, saberesArea] of saberesPorArea.entries()) {
+                for (let saber of saberesArea) {
+                    // Buscar una semana que ya tenga esa área o la primera que tenga menos saberes
+                    let mejorSemana = -1;
+                    let menorCantidad = Infinity;
+                    for (let j = 0; j < distribucion.semanas.length; j++) {
+                        if (distribucion.semanas[j].areas.includes(area)) {
+                            mejorSemana = j;
+                            break;
+                        }
+                        if (distribucion.semanas[j].saberes.length < menorCantidad) {
+                            menorCantidad = distribucion.semanas[j].saberes.length;
+                            mejorSemana = j;
+                        }
+                    }
+                    if (mejorSemana === -1) mejorSemana = semanaIdx % distribucion.semanas.length;
+                    let semana = distribucion.semanas[mejorSemana];
+                    if (!semana.areas.includes(area)) semana.areas.push(area);
+                    semana.saberes.push(saber);
+                    semanaIdx++;
+                }
+            }
+        
+            // Calcular indicadores iniciales para cada semana
+            for (let semana of distribucion.semanas) {
+                semana.indicadores = obtenerIndicadoresPorSaberesNuevo(semana.saberes, nivel);
+            }
+        
             distribucionActual = distribucion;
-            renderizarTablaEditable();
+            renderizarTablaEditable(); // nueva versión
             document.getElementById('modalDistribucion').style.display = 'block';
         }
-
-        function obtenerIndicadoresPorSaberesNuevo(saberes, nivel) {
-            if (!nivel || !saberes.length) return [];
-            
-            let indicadores = [];
-            
-            saberes.forEach(saberNombre => {
-                if (PNFT_DATA[nivel] && PNFT_DATA[nivel]["Módulo 1"]) {
-                    for (const a in PNFT_DATA[nivel]["Módulo 1"]) {
-                        const saberData = PNFT_DATA[nivel]["Módulo 1"][a]?.saberes.find(s => s.nombre === saberNombre);
-                        if (saberData) {
-                            indicadores = indicadores.concat(saberData.indicadores);
-                            break;
-                        }
-                    }
-                }
-                
-                if (PNFT_DATA[nivel] && PNFT_DATA[nivel]["Módulo 2"]) {
-                    for (const a in PNFT_DATA[nivel]["Módulo 2"]) {
-                        const saberData = PNFT_DATA[nivel]["Módulo 2"][a]?.saberes.find(s => s.nombre === saberNombre);
-                        if (saberData) {
-                            indicadores = indicadores.concat(saberData.indicadores);
-                            break;
-                        }
-                    }
-                }
-            });
-            
-            return [...new Set(indicadores)];
-        }
-
+        
+        // 2. Renderizar tabla editable (soporta múltiples áreas y checkboxes dinámicos)
         function renderizarTablaEditable() {
             const tbody = document.getElementById('modalTablaCuerpo');
             if (!tbody) return;
             let html = '';
-            distribucionActual.semanas.forEach((semana, index) => {
+            distribucionActual.semanas.forEach((semana, idx) => {
                 html += `
                 <tr style="border-bottom:1px solid #ddd;">
-                    <td style="padding:12px; vertical-align:top;"><strong>Semana ${index+1}</strong></td>
-                    <td style="padding:12px; vertical-align:top;"><input type="text" value="${semana.lecciones}" class="input-field" style="width:100px;" onchange="actualizarLeccionesModal(${index}, this.value)"></td>
-                    <td style="padding:12px; vertical-align:top;"><select class="select-field" style="width:100%;" onchange="cambiarAreaModal(${index}, this.value)">${generarOpcionesAreasModal(semana.area)}</select></td>
-                    <td style="padding:12px; vertical-align:top;"><div style="max-height:150px; overflow-y:auto; padding:5px; border:1px solid #eee; border-radius:4px;">${generarCheckboxesSaberesModal(semana.saberes, index)}</div></td>
-                    <td style="padding:12px; vertical-align:top;"><div id="indicadores-${index}" style="max-height:150px; overflow-y:auto; font-size:11px; background:#f9f9f9; padding:8px; border-radius:4px;">${semana.indicadores.map(i => `• ${i}`).join('<br>')}</div></td>
-                    <td style="padding:12px; vertical-align:top;"><select class="select-field" style="width:100px;" onchange="cambiarMetodologiaModal(${index}, this.value)"><option value="ABJ" ${semana.metodologia==='ABJ'?'selected':''}>ABJ</option><option value="ABR" ${semana.metodologia==='ABR'?'selected':''}>ABR</option><option value="APD" ${semana.metodologia==='APD'?'selected':''}>APD</option></select></td>
-                    <td style="padding:12px; vertical-align:top;"><button onclick="eliminarSemanaModal(${index})" class="btn-eliminar-semana" style="width:28px; height:28px;" ${distribucionActual.semanas.length<=1?'disabled':''}>✕</button></td>
+                    <td style="padding:12px; vertical-align:top;"><strong>Semana ${idx+1}</strong></td>
+                    <td style="padding:12px; vertical-align:top;">
+                        <input type="text" value="${escapeHtml(semana.lecciones)}" class="input-field" style="width:100px;" 
+                               onchange="actualizarLeccionesModal(${idx}, this.value)">
+                    </td>
+                    <td style="padding:12px; vertical-align:top;">
+                        <div id="areas-checkboxes-${idx}" style="display:flex; flex-direction:column; gap:4px;">
+                            ${generarCheckboxesAreasModal(idx, semana.areas)}
+                        </div>
+                    </td>
+                    <td style="padding:12px; vertical-align:top;">
+                        <div id="saberes-container-${idx}" style="max-height:200px; overflow-y:auto; padding:5px; border:1px solid #eee; border-radius:4px;">
+                            ${generarCheckboxesSaberesModal(idx)}
+                        </div>
+                    </td>
+                    <td style="padding:12px; vertical-align:top;">
+                        <div id="indicadores-${idx}" style="max-height:150px; overflow-y:auto; font-size:11px; background:#f9f9f9; padding:8px; border-radius:4px;">
+                            ${semana.indicadores.map(i => `• ${escapeHtml(i)}`).join('<br>')}
+                        </div>
+                    </td>
+                    <td style="padding:12px; vertical-align:top;">
+                        <select class="select-field" style="width:100px;" onchange="cambiarMetodologiaModal(${idx}, this.value)">
+                            <option value="ABJ" ${semana.metodologia === 'ABJ' ? 'selected' : ''}>ABJ</option>
+                            <option value="ABR" ${semana.metodologia === 'ABR' ? 'selected' : ''}>ABR</option>
+                            <option value="APD" ${semana.metodologia === 'APD' ? 'selected' : ''}>APD</option>
+                        </select>
+                    </td>
+                    <td style="padding:12px; vertical-align:top;">
+                        <button onclick="eliminarSemanaModal(${idx})" class="btn-eliminar-semana" style="width:28px; height:28px;" 
+                                ${distribucionActual.semanas.length <= 1 ? 'disabled' : ''}>✕</button>
+                    </td>
                 </tr>`;
             });
             tbody.innerHTML = html;
         }
-
-        function generarOpcionesAreasModal(areaSeleccionada) {
-            const areas = [
+        
+        // Helper: escapar HTML para evitar inyección
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+        
+        // 3. Generar checkboxes de áreas (con manejo de eventos)
+        function generarCheckboxesAreasModal(semanaIndex, areasSeleccionadas) {
+            const todasAreas = [
                 'Apropiación tecnológica y Digital',
                 'Programación y Algoritmos',
                 'Computación física y Robótica',
                 'Ciencia de datos e Inteligencia artificial'
             ];
-            
-            return areas.map(a => 
-                `<option value="${a}" ${a === areaSeleccionada ? 'selected' : ''}>${a}</option>`
-            ).join('');
-        }
-
-        function generarCheckboxesSaberesModal(saberesSeleccionados, semanaIndex) {
-            const nivel = document.getElementById('nivel').value;
-            const area = distribucionActual.semanas[semanaIndex].area;
-            
-            if (!nivel || !area || !PNFT_DATA[nivel]) return '<p>No hay saberes disponibles</p>';
-            
             let html = '';
-            
-            if (PNFT_DATA[nivel]["Módulo 1"] && PNFT_DATA[nivel]["Módulo 1"][area]) {
-                PNFT_DATA[nivel]["Módulo 1"][area].saberes.forEach(saber => {
-                    const checked = saberesSeleccionados.includes(saber.nombre) ? 'checked' : '';
-                    html += `
-                        <div style="margin-bottom: 8px; padding: 4px; background: ${checked ? '#f0ebf9' : 'white'}; border-radius: 4px;" class="saber-checkbox-modal ${checked ? 'seleccionado' : ''}">
-                            <label style="display: flex; align-items: flex-start; gap: 6px; cursor: pointer;">
-                                <input type="checkbox" ${checked} 
-                                       onchange="toggleSaberModal(${semanaIndex}, '${saber.nombre}', this.checked)">
-                                <div>
-                                    <span style="font-size: 11px; font-weight: 500;">${saber.nombre}</span>
-                                    <span style="font-size: 9px; color: #45258F; margin-left: 4px;">[M1]</span>
-                                    <div style="font-size: 9px; color: #666;">${saber.indicadores[0].substring(0, 60)}...</div>
-                                </div>
-                            </label>
-                        </div>
-                    `;
-                });
-            }
-            
-            if (PNFT_DATA[nivel]["Módulo 2"] && PNFT_DATA[nivel]["Módulo 2"][area]) {
-                PNFT_DATA[nivel]["Módulo 2"][area].saberes.forEach(saber => {
-                    const checked = saberesSeleccionados.includes(saber.nombre) ? 'checked' : '';
-                    html += `
-                        <div style="margin-bottom: 8px; padding: 4px; background: ${checked ? '#f5f2ff' : 'white'}; border-radius: 4px;" class="saber-checkbox-modal ${checked ? 'seleccionado' : ''}">
-                            <label style="display: flex; align-items: flex-start; gap: 6px; cursor: pointer;">
-                                <input type="checkbox" ${checked} 
-                                       onchange="toggleSaberModal(${semanaIndex}, '${saber.nombre}', this.checked)">
-                                <div>
-                                    <span style="font-size: 11px; font-weight: 500;">${saber.nombre}</span>
-                                    <span style="font-size: 9px; color: #6c47c9; margin-left: 4px;">[M2]</span>
-                                    <div style="font-size: 9px; color: #666;">${saber.indicadores[0].substring(0, 60)}...</div>
-                                </div>
-                            </label>
-                        </div>
-                    `;
-                });
-            }
-            
-            return html || '<p>No hay saberes para esta área</p>';
+            todasAreas.forEach(area => {
+                const checked = areasSeleccionadas.includes(area) ? 'checked' : '';
+                html += `
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 12px; margin-bottom: 3px;">
+                        <input type="checkbox" value="${escapeHtml(area)}" ${checked} 
+                               onchange="toggleAreaModal(${semanaIndex}, '${escapeHtml(area)}', this.checked)">
+                        <span>${escapeHtml(area)}</span>
+                    </label>
+                `;
+            });
+            return html;
         }
-
-        function toggleSaberModal(semanaIndex, saberNombre, checked) {
+        
+        // 4. Generar checkboxes de saberes conceptuales según áreas seleccionadas
+        function generarCheckboxesSaberesModal(semanaIndex) {
+            const semana = distribucionActual.semanas[semanaIndex];
+            const areas = semana.areas;
+            const nivel = document.getElementById('nivel').value;
+            if (!nivel || areas.length === 0) {
+                return '<div style="color:#999; font-size:11px;">Seleccione al menos un área</div>';
+            }
+        
+            let html = '';
+            for (let area of areas) {
+                let saberesArea = [];
+                // Recolectar saberes de M1 y M2
+                if (PNFT_DATA[nivel] && PNFT_DATA[nivel]["Módulo 1"] && PNFT_DATA[nivel]["Módulo 1"][area]) {
+                    saberesArea.push(...PNFT_DATA[nivel]["Módulo 1"][area].saberes.map(s => ({ ...s, modulo: 'M1' })));
+                }
+                if (PNFT_DATA[nivel] && PNFT_DATA[nivel]["Módulo 2"] && PNFT_DATA[nivel]["Módulo 2"][area]) {
+                    saberesArea.push(...PNFT_DATA[nivel]["Módulo 2"][area].saberes.map(s => ({ ...s, modulo: 'M2' })));
+                }
+                if (saberesArea.length === 0) continue;
+        
+                html += `<div style="margin-top:10px; font-weight:bold; font-size:12px; color:#45258F;">${area}</div>`;
+                saberesArea.forEach(saber => {
+                    const checked = semana.saberes.includes(saber.nombre) ? 'checked' : '';
+                    const tooltip = saber.indicadores[0] || 'Sin indicador';
+                    html += `
+                        <div class="saber-checkbox-modal ${checked ? 'seleccionado' : ''}" style="margin-bottom: 8px; padding: 4px; background: ${checked ? '#f0ebf9' : 'white'}; border-radius: 4px;">
+                            <label style="display: flex; align-items: flex-start; gap: 6px; cursor: pointer;" class="tooltip-improved">
+                                <input type="checkbox" ${checked} 
+                                       onchange="toggleSaberModal(${semanaIndex}, '${escapeHtml(saber.nombre)}', this.checked)">
+                                <div>
+                                    <span style="font-size: 11px; font-weight: 500;">${escapeHtml(saber.nombre)}</span>
+                                    <span style="font-size: 9px; color: #45258F; margin-left: 4px;">[${saber.modulo}]</span>
+                                    <div style="font-size: 9px; color: #666;">${escapeHtml(tooltip.substring(0, 80))}...</div>
+                                </div>
+                                <span class="tooltiptext-improved" style="width:300px;">${escapeHtml(tooltip)}</span>
+                            </label>
+                        </div>
+                    `;
+                });
+            }
+            return html || '<div style="color:#999; font-size:11px;">No hay saberes para las áreas seleccionadas</div>';
+        }
+        
+        // 5. Manejar toggle de área (agrega/elimina área y sus saberes)
+        function toggleAreaModal(semanaIndex, area, checked) {
+            const semana = distribucionActual.semanas[semanaIndex];
             if (checked) {
-                if (!distribucionActual.semanas[semanaIndex].saberes.includes(saberNombre)) {
-                    distribucionActual.semanas[semanaIndex].saberes.push(saberNombre);
+                if (!semana.areas.includes(area)) semana.areas.push(area);
+            } else {
+                semana.areas = semana.areas.filter(a => a !== area);
+                // Eliminar saberes de esa área
+                const nivel = document.getElementById('nivel').value;
+                let saberesAEliminar = [];
+                if (PNFT_DATA[nivel] && PNFT_DATA[nivel]["Módulo 1"] && PNFT_DATA[nivel]["Módulo 1"][area]) {
+                    saberesAEliminar.push(...PNFT_DATA[nivel]["Módulo 1"][area].saberes.map(s => s.nombre));
+                }
+                if (PNFT_DATA[nivel] && PNFT_DATA[nivel]["Módulo 2"] && PNFT_DATA[nivel]["Módulo 2"][area]) {
+                    saberesAEliminar.push(...PNFT_DATA[nivel]["Módulo 2"][area].saberes.map(s => s.nombre));
+                }
+                semana.saberes = semana.saberes.filter(s => !saberesAEliminar.includes(s));
+            }
+            // Recalcular indicadores
+            semana.indicadores = obtenerIndicadoresPorSaberesNuevo(semana.saberes, document.getElementById('nivel').value);
+            renderizarTablaEditable(); // refrescar
+        }
+        
+        // 6. Manejar toggle de saber (actualiza indicadores automáticamente)
+        function toggleSaberModal(semanaIndex, saberNombre, checked) {
+            const semana = distribucionActual.semanas[semanaIndex];
+            if (checked) {
+                if (!semana.saberes.includes(saberNombre)) semana.saberes.push(saberNombre);
+                // Asegurar que el área correspondiente esté marcada
+                const nivel = document.getElementById('nivel').value;
+                let areaAsociada = null;
+                for (let modulo of ['Módulo 1', 'Módulo 2']) {
+                    if (PNFT_DATA[nivel] && PNFT_DATA[nivel][modulo]) {
+                        for (let [area, contenido] of Object.entries(PNFT_DATA[nivel][modulo])) {
+                            if (contenido.saberes.some(s => s.nombre === saberNombre)) {
+                                areaAsociada = area;
+                                break;
+                            }
+                        }
+                        if (areaAsociada) break;
+                    }
+                }
+                if (areaAsociada && !semana.areas.includes(areaAsociada)) {
+                    semana.areas.push(areaAsociada);
                 }
             } else {
-                distribucionActual.semanas[semanaIndex].saberes = 
-                    distribucionActual.semanas[semanaIndex].saberes.filter(s => s !== saberNombre);
+                semana.saberes = semana.saberes.filter(s => s !== saberNombre);
             }
-            
-            const nivel = document.getElementById('nivel').value;
-            const nuevosIndicadores = obtenerIndicadoresPorSaberesNuevo(
-                distribucionActual.semanas[semanaIndex].saberes,
-                nivel
-            );
-            
-            distribucionActual.semanas[semanaIndex].indicadores = nuevosIndicadores;
-            
-            const indicadoresDiv = document.getElementById(`indicadores-${semanaIndex}`);
-            if (indicadoresDiv) {
-                indicadoresDiv.innerHTML = nuevosIndicadores.map(i => `• ${i}`).join('<br>');
-            }
-            
+            // Recalcular indicadores
+            semana.indicadores = obtenerIndicadoresPorSaberesNuevo(semana.saberes, document.getElementById('nivel').value);
             renderizarTablaEditable();
         }
-
+        
+        // 7. Actualizar lecciones en modal
         function actualizarLeccionesModal(index, valor) {
             distribucionActual.semanas[index].lecciones = valor;
         }
-
-        function cambiarAreaModal(semanaIndex, nuevaArea) {
-            distribucionActual.semanas[semanaIndex].area = nuevaArea;
-            distribucionActual.semanas[semanaIndex].saberes = [];
-            distribucionActual.semanas[semanaIndex].indicadores = [];
-            renderizarTablaEditable();
-        }
-
+        
+        // 8. Cambiar metodología por semana
         function cambiarMetodologiaModal(semanaIndex, nuevaMetodologia) {
             distribucionActual.semanas[semanaIndex].metodologia = nuevaMetodologia;
         }
-
+        
+        // 9. Aplicar metodología a todas las semanas
         function aplicarMetodologiaATodas() {
             const metodologiaGlobal = document.getElementById('modalMetodologiaGlobal').value;
             distribucionActual.semanas.forEach(semana => {
@@ -4801,83 +4895,114 @@
             });
             renderizarTablaEditable();
         }
-
+        
+        // 10. Agregar semana en modal
         function agregarSemanaEnModal() {
+            const ultima = distribucionActual.semanas[distribucionActual.semanas.length - 1];
+            const num = distribucionActual.semanas.length + 1;
             const nuevaSemana = {
-                lecciones: `Lecciones ${distribucionActual.semanas.length * 2 + 1} y ${distribucionActual.semanas.length * 2 + 2}`,
-                area: distribucionActual.semanas[0]?.area || 'Apropiación tecnológica y Digital',
+                lecciones: `Lecciones ${num*2-1} y ${num*2}`,
+                areas: ultima ? [...ultima.areas] : [],
                 saberes: [],
                 indicadores: [],
-                metodologia: distribucionActual.semanas[0]?.metodologia || 'ABJ'
+                metodologia: ultima ? ultima.metodologia : 'ABJ'
             };
-            
             distribucionActual.semanas.push(nuevaSemana);
             renderizarTablaEditable();
         }
-
+        
+        // 11. Eliminar semana en modal
         function eliminarSemanaModal(index) {
             if (distribucionActual.semanas.length <= 1) {
                 mostrarMensaje('Debe haber al menos una semana', true);
                 return;
             }
-            
             distribucionActual.semanas.splice(index, 1);
             renderizarTablaEditable();
         }
-
+        
+        // 12. Validar antes de aplicar
         function validarDistribucionAntesDeAplicar() {
             const semanasVacias = distribucionActual.semanas.filter(s => s.saberes.length === 0);
-            
             if (semanasVacias.length > 0) {
                 if (!confirm(`Hay ${semanasVacias.length} semana(s) sin saberes asignados. ¿Desea eliminarlas?`)) {
                     return false;
                 }
                 distribucionActual.semanas = distribucionActual.semanas.filter(s => s.saberes.length > 0);
             }
-            
-            const totalSaberes = distribucionActual.semanas.reduce((sum, s) => sum + s.saberes.length, 0);
-            const semanasNecesarias = Math.ceil(totalSaberes / 3);
-            
-            if (distribucionActual.semanas.length < semanasNecesarias) {
-                if (confirm(`Se recomiendan al menos ${semanasNecesarias} semanas para ${totalSaberes} saberes. ¿Desea agregar ${semanasNecesarias - distribucionActual.semanas.length} semana(s)?`)) {
-                    for (let i = 0; i < semanasNecesarias - distribucionActual.semanas.length; i++) {
-                        agregarSemanaEnModal();
-                    }
-                }
+            if (distribucionActual.semanas.length === 0) {
+                mostrarMensaje('No se puede aplicar una distribución sin semanas.', true);
+                return false;
             }
-            
             return true;
         }
-
+        
+        // 13. Aplicar distribución a las semanas principales (preserva ejes, procedimentales, actitudinales, etc.)
         function aplicarDistribucionASemanas() {
             if (!validarDistribucionAntesDeAplicar()) return;
-            
-            semanas = distribucionActual.semanas.map((sem, idx) => {
-                const semanaOriginal = semanas[idx] || {};
-                
-                return {
-                    id: idx + 1,
-                    nombre: `Semana ${idx + 1}`,
-                    lecciones: sem.lecciones,
-                    areas: [sem.area],
-                    saberes: sem.saberes,
-                    procedimentales: semanaOriginal.procedimentales || [],
-                    actitudinales: semanaOriginal.actitudinales || [],
-                    actividades: semanaOriginal.actividades || '',
-                    evaluacion: semanaOriginal.evaluacion || '',
-                    indicadores: sem.indicadores.join('<br>')
-                };
-            });
-            
+        
+            // Mapear semanas existentes por índice (si existen)
+            const semanasExistentes = [...semanas];
+            const nuevasSemanas = [];
+        
+            for (let i = 0; i < distribucionActual.semanas.length; i++) {
+                const distSem = distribucionActual.semanas[i];
+                const original = semanasExistentes[i] || {};
+        
+                nuevasSemanas.push({
+                    id: i + 1,
+                    nombre: `Semana ${i + 1}`,
+                    lecciones: distSem.lecciones,
+                    eje: original.eje || '',              // preservar eje transversal
+                    areas: distSem.areas,                 // nuevo array de áreas
+                    saberes: distSem.saberes,
+                    procedimentales: original.procedimentales || [],
+                    actitudinales: original.actitudinales || [],
+                    actividades: original.actividades || '',
+                    evaluacion: original.evaluacion || '',
+                    indicadores: distSem.indicadores.join('<br>')
+                });
+            }
+        
+            semanas = nuevasSemanas;
             reconstruirVistaSemanasPreservandoContenido();
-            
             cerrarModalDistribucion();
-            mostrarMensaje('✅ Distribución aplicada a las semanas correctamente');
+            mostrarMensaje('✅ Distribución aplicada a las semanas correctamente.');
         }
-
+        
+        // 14. Cerrar modal
         function cerrarModalDistribucion() {
             document.getElementById('modalDistribucion').style.display = 'none';
             distribucionActual = null;
+        }
+        
+        // 15. Obtener indicadores a partir de una lista de saberes (ya existente, pero la dejamos igual)
+        function obtenerIndicadoresPorSaberesNuevo(saberes, nivel) {
+            if (!nivel || !saberes.length) return [];
+            let indicadores = [];
+            saberes.forEach(saberNombre => {
+                let encontrado = false;
+                if (PNFT_DATA[nivel] && PNFT_DATA[nivel]["Módulo 1"]) {
+                    for (let area in PNFT_DATA[nivel]["Módulo 1"]) {
+                        const saberData = PNFT_DATA[nivel]["Módulo 1"][area]?.saberes.find(s => s.nombre === saberNombre);
+                        if (saberData) {
+                            indicadores.push(...saberData.indicadores);
+                            encontrado = true;
+                            break;
+                        }
+                    }
+                }
+                if (!encontrado && PNFT_DATA[nivel] && PNFT_DATA[nivel]["Módulo 2"]) {
+                    for (let area in PNFT_DATA[nivel]["Módulo 2"]) {
+                        const saberData = PNFT_DATA[nivel]["Módulo 2"][area]?.saberes.find(s => s.nombre === saberNombre);
+                        if (saberData) {
+                            indicadores.push(...saberData.indicadores);
+                            break;
+                        }
+                    }
+                }
+            });
+            return [...new Set(indicadores)];
         }
 
         function obtenerNombreEje(valor) {
