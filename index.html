@@ -982,6 +982,30 @@
             background: var(--light-purple);
         }
 
+        /* Para el modal de distribución, permitir que los tooltips sobresalgan */
+        #modalDistribucion .saber-checkbox-modal {
+            position: relative;
+            overflow: visible;
+        }
+        
+        #modalDistribucion .tooltip-improved .tooltiptext-improved {
+            z-index: 100000;
+            white-space: normal;
+            width: 280px;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 100%;
+            top: auto;
+        }
+        
+        #modalDistribucion .saberes-container {
+            overflow: visible !important;
+        }
+        
+        #modalDistribucion .modal-content {
+            overflow: visible;
+        }
+
         /* ==================================================== */
         /* FIN: NUEVOS ESTILOS */
         /* ==================================================== */
@@ -3113,6 +3137,7 @@
             if (plan.semanas && plan.semanas.length > 0) {
                 semanas = plan.semanas;
                 reconstruirVistaSemanasPreservandoContenido();
+                sincronizarProyeccionDesdeSemanas();
             }
             
             if (plan.saberesGlobales) {
@@ -4607,97 +4632,38 @@
         let distribucionActual = null;
 
         // 1. Abrir modal de distribución (agrupa saberes por área y los distribuye)
-        function abrirDistribucionEditable() {
-            if (saberesProyeccionSeleccionados.size === 0) {
-                mostrarMensaje('⚠️ Seleccione al menos un saber conceptual en la proyección.', true);
-                return;
+           function abrirDistribucionEditable() {
+            // Si no hay semanas, inicializar con al menos una
+            if (!semanas || semanas.length === 0) {
+                semanas = [{
+                    id: 1,
+                    nombre: 'Semana 1',
+                    lecciones: 'Lecciones 1 y 2',
+                    areas: [],
+                    saberes: [],
+                    procedimentales: [],
+                    actitudinales: [],
+                    actividades: '',
+                    evaluacion: '',
+                    indicadores: ''
+                }];
             }
         
-            const nivel = document.getElementById('nivel').value;
-            if (!nivel) {
-                mostrarMensaje('⚠️ Seleccione primero el nivel educativo.', true);
-                return;
-            }
-        
-            // Agrupar saberes seleccionados por área
-            const saberesPorArea = new Map(); // area -> array de nombres de saberes
-            for (let saber of saberesProyeccionSeleccionados) {
-                let areaEncontrada = null;
-                // Buscar en Módulo 1 y 2
-                for (let modulo of ['Módulo 1', 'Módulo 2']) {
-                    if (PNFT_DATA[nivel] && PNFT_DATA[nivel][modulo]) {
-                        for (let [area, contenido] of Object.entries(PNFT_DATA[nivel][modulo])) {
-                            if (contenido.saberes.some(s => s.nombre === saber)) {
-                                areaEncontrada = area;
-                                break;
-                            }
-                        }
-                        if (areaEncontrada) break;
-                    }
-                }
-                if (areaEncontrada) {
-                    if (!saberesPorArea.has(areaEncontrada)) saberesPorArea.set(areaEncontrada, []);
-                    saberesPorArea.get(areaEncontrada).push(saber);
-                } else {
-                    console.warn(`Saber "${saber}" no tiene área asignada.`);
-                }
-            }
-        
-            if (saberesPorArea.size === 0) {
-                mostrarMensaje('⚠️ No se pudieron determinar las áreas de los saberes seleccionados.', true);
-                return;
-            }
-        
-            // Determinar número de semanas (máximo entre semanas actuales o mínimo necesario)
-            let semanasActuales = semanas.length || 4;
-            let totalSaberes = saberesProyeccionSeleccionados.size;
-            let minSemanas = Math.ceil(totalSaberes / 3); // aprox 3 saberes por semana
-            let numSemanas = Math.max(semanasActuales, minSemanas);
-        
-            // Crear distribución inicial vacía
-            let distribucion = { semanas: [] };
-            for (let i = 0; i < numSemanas; i++) {
+            // Construir distribucionActual a partir de las semanas existentes
+            const distribucion = { semanas: [] };
+            for (let i = 0; i < semanas.length; i++) {
+                const semana = semanas[i];
                 distribucion.semanas.push({
-                    lecciones: `Lecciones ${i*2+1} y ${(i+1)*2}`,
-                    areas: [],          // ahora es array de áreas
-                    saberes: [],        // array de nombres de saberes
-                    indicadores: [],
+                    lecciones: semana.lecciones,
+                    areas: [...semana.areas],          // copia del array de áreas
+                    saberes: [...semana.saberes],      // copia de saberes conceptuales
+                    indicadores: semana.indicadores ? semana.indicadores.split('<br>').filter(s => s.trim()) : [],
                     metodologia: document.getElementById('metodologiaActiva').value || 'ABJ'
                 });
             }
         
-            // Distribuir saberes por área equitativamente entre semanas
-            let semanaIdx = 0;
-            for (let [area, saberesArea] of saberesPorArea.entries()) {
-                for (let saber of saberesArea) {
-                    // Buscar una semana que ya tenga esa área o la primera que tenga menos saberes
-                    let mejorSemana = -1;
-                    let menorCantidad = Infinity;
-                    for (let j = 0; j < distribucion.semanas.length; j++) {
-                        if (distribucion.semanas[j].areas.includes(area)) {
-                            mejorSemana = j;
-                            break;
-                        }
-                        if (distribucion.semanas[j].saberes.length < menorCantidad) {
-                            menorCantidad = distribucion.semanas[j].saberes.length;
-                            mejorSemana = j;
-                        }
-                    }
-                    if (mejorSemana === -1) mejorSemana = semanaIdx % distribucion.semanas.length;
-                    let semana = distribucion.semanas[mejorSemana];
-                    if (!semana.areas.includes(area)) semana.areas.push(area);
-                    semana.saberes.push(saber);
-                    semanaIdx++;
-                }
-            }
-        
-            // Calcular indicadores iniciales para cada semana
-            for (let semana of distribucion.semanas) {
-                semana.indicadores = obtenerIndicadoresPorSaberesNuevo(semana.saberes, nivel);
-            }
-        
             distribucionActual = distribucion;
-            renderizarTablaEditable(); // nueva versión
+            renderizarTablaEditable();
             document.getElementById('modalDistribucion').style.display = 'block';
         }
         
@@ -5012,6 +4978,55 @@
                 'emprendimiento': 'Emprendimiento e Innovación'
             };
             return mapa[valor] || valor;
+        }
+        // ====================================================
+        // PARCHE PARA SINCRONIZAR PROYECCIÓN (AGREGAR AL FINAL DEL SCRIPT)
+        // ====================================================
+        
+        function sincronizarProyeccionDesdeSemanas() {
+            if (typeof semanas === 'undefined') return;
+            const areasSet = new Set();
+            const saberesSet = new Set();
+            semanas.forEach(semana => {
+                semana.areas.forEach(area => areasSet.add(area));
+                semana.saberes.forEach(saber => saberesSet.add(saber));
+            });
+            window.areasProyeccion = Array.from(areasSet);
+            window.saberesProyeccionSeleccionados = new Set(saberesSet);
+            // Marcar checkboxes
+            document.querySelectorAll('input[name="area-proyeccion"]').forEach(chk => {
+                const areaNombre = {
+                    'apropiacion': 'Apropiación tecnológica y Digital',
+                    'programacion': 'Programación y Algoritmos',
+                    'robotica': 'Computación física y Robótica',
+                    'ciencia': 'Ciencia de datos e Inteligencia artificial'
+                }[chk.value];
+                chk.checked = window.areasProyeccion.includes(areaNombre);
+            });
+            if (typeof actualizarAreasProyeccion === 'function') actualizarAreasProyeccion();
+        }
+        
+        // Parchear cargarPlan si existe
+        if (typeof cargarPlan === 'function') {
+            const originalCargarPlan = cargarPlan;
+            cargarPlan = function(plan) {
+                originalCargarPlan(plan);
+                sincronizarProyeccionDesdeSemanas();
+            };
+        }
+        
+        // Parchear aplicarDistribucionASemanas si existe
+        if (typeof aplicarDistribucionASemanas === 'function') {
+            const originalAplicar = aplicarDistribucionASemanas;
+            aplicarDistribucionASemanas = function() {
+                originalAplicar();
+                sincronizarProyeccionDesdeSemanas();
+            };
+        }
+        
+        // Llamar al inicio si ya hay semanas
+        if (typeof semanas !== 'undefined' && semanas.length > 0) {
+            setTimeout(sincronizarProyeccionDesdeSemanas, 500);
         }
 
         // ====================================================
