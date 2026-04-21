@@ -3180,6 +3180,7 @@
                 // Actualizar la vista de la proyección
                 if (typeof actualizarAreasProyeccion === 'function') {
                     actualizarAreasProyeccion();
+                    actualizarIndicadoresProyeccion();
                 }
             } else {
                 // Si el archivo guardado es antiguo y no tiene proyección, sincronizar desde semanas
@@ -4489,59 +4490,69 @@
             contenedor.innerHTML = html;
         }
 
-        function actualizarIndicadoresProyeccion() {
-            const indicadoresContainer = document.getElementById('indicadores-proyeccion-auto');
-            if (!indicadoresContainer) return;
-            
+       function actualizarIndicadoresProyeccion() {
+            const contenedor = document.getElementById('indicadores-proyeccion-auto');
+            if (!contenedor) return;
+        
             const nivel = document.getElementById('nivel').value;
-            
-            let indicadoresHTML = '';
-            
-            saberesProyeccionSeleccionados.forEach(saber => {
-                let encontrado = false;
-                
-                if (PNFT_DATA[nivel] && PNFT_DATA[nivel]["Módulo 1"]) {
-                    for (const moduloArea in PNFT_DATA[nivel]["Módulo 1"]) {
-                        const saberData = PNFT_DATA[nivel]["Módulo 1"][moduloArea]?.saberes.find(s => s.nombre === saber);
-                        if (saberData) {
-                            encontrado = true;
-                            saberData.indicadores.forEach(indicador => {
-                                indicadoresHTML += `
-                                    <div style="margin-bottom: 6px; padding: 4px 0; border-bottom: 1px dotted #ddd; font-size: 11px;">
-                                        • ${indicador} 
-                                        <span style="color: #45258F; font-size: 9px; background: #45258F10; padding: 1px 4px; border-radius: 3px; margin-left: 4px;">[Módulo 1]</span>
-                                    </div>
-                                `;
-                            });
-                            break;
-                        }
-                    }
-                }
-                
-                if (!encontrado && PNFT_DATA[nivel] && PNFT_DATA[nivel]["Módulo 2"]) {
-                    for (const moduloArea in PNFT_DATA[nivel]["Módulo 2"]) {
-                        const saberData = PNFT_DATA[nivel]["Módulo 2"][moduloArea]?.saberes.find(s => s.nombre === saber);
-                        if (saberData) {
-                            encontrado = true;
-                            saberData.indicadores.forEach(indicador => {
-                                indicadoresHTML += `
-                                    <div style="margin-bottom: 6px; padding: 4px 0; border-bottom: 1px dotted #ddd; font-size: 11px;">
-                                        • ${indicador} 
-                                        <span style="color: #6c47c9; font-size: 9px; background: #6c47c910; padding: 1px 4px; border-radius: 3px; margin-left: 4px;">[Módulo 2]</span>
-                                    </div>
-                                `;
-                            });
-                            break;
-                        }
-                    }
-                }
-            });
-            
-            if (indicadoresHTML === '') {
-                indicadoresHTML = '<div style="color: #666; font-style: italic; padding: 10px; text-align: center;">Los indicadores aparecerán automáticamente según los saberes conceptuales seleccionados</div>';
+            if (!nivel || saberesProyeccionSeleccionados.size === 0) {
+                contenedor.innerHTML = '<div style="color: #666; font-style: italic; padding: 10px; text-align: center;">Los indicadores aparecerán automáticamente según los saberes conceptuales seleccionados</div>';
+                return;
             }
-            
-            indicadoresContainer.innerHTML = indicadoresHTML;
+        
+            let indicadoresHTML = '';
+            const indicadoresSet = new Set(); // para evitar duplicados
+        
+            for (let saber of saberesProyeccionSeleccionados) {
+                let encontrado = false;
+                // Buscar en Módulo 1
+                if (PNFT_DATA[nivel] && PNFT_DATA[nivel]["Módulo 1"]) {
+                    for (let area in PNFT_DATA[nivel]["Módulo 1"]) {
+                        const saberData = PNFT_DATA[nivel]["Módulo 1"][area]?.saberes.find(s => s.nombre === saber);
+                        if (saberData) {
+                            saberData.indicadores.forEach(ind => {
+                                if (!indicadoresSet.has(ind)) {
+                                    indicadoresSet.add(ind);
+                                    indicadoresHTML += `
+                                        <div style="margin-bottom: 6px; padding: 4px 0; border-bottom: 1px dotted #ddd; font-size: 11px;">
+                                            • ${escapeHtml(ind)} 
+                                            <span style="color: #45258F; font-size: 9px; background: #45258F10; padding: 1px 4px; border-radius: 3px; margin-left: 4px;">[Módulo 1]</span>
+                                        </div>
+                                    `;
+                                }
+                            });
+                            encontrado = true;
+                            break;
+                        }
+                    }
+                }
+                // Si no se encontró en M1, buscar en Módulo 2
+                if (!encontrado && PNFT_DATA[nivel] && PNFT_DATA[nivel]["Módulo 2"]) {
+                    for (let area in PNFT_DATA[nivel]["Módulo 2"]) {
+                        const saberData = PNFT_DATA[nivel]["Módulo 2"][area]?.saberes.find(s => s.nombre === saber);
+                        if (saberData) {
+                            saberData.indicadores.forEach(ind => {
+                                if (!indicadoresSet.has(ind)) {
+                                    indicadoresSet.add(ind);
+                                    indicadoresHTML += `
+                                        <div style="margin-bottom: 6px; padding: 4px 0; border-bottom: 1px dotted #ddd; font-size: 11px;">
+                                            • ${escapeHtml(ind)} 
+                                            <span style="color: #6c47c9; font-size: 9px; background: #6c47c910; padding: 1px 4px; border-radius: 3px; margin-left: 4px;">[Módulo 2]</span>
+                                        </div>
+                                    `;
+                                }
+                            });
+                            break;
+                        }
+                    }
+                }
+            }
+        
+            if (indicadoresHTML === '') {
+                contenedor.innerHTML = '<div style="color: #666; font-style: italic; padding: 10px; text-align: center;">Los indicadores aparecerán automáticamente según los saberes conceptuales seleccionados</div>';
+            } else {
+                contenedor.innerHTML = indicadoresHTML;
+            }
         }
 
         function sincronizarLeccionesProyeccion() {
